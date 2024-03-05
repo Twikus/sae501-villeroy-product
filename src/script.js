@@ -82,6 +82,7 @@ scene.add(camera)
 const controls = new OrbitControls(camera, canvas)
 controls.target.set(0, 0.75, 0)
 controls.enableDamping = true
+controls.enableRotate = false
 
 /**
  * Renderer
@@ -105,6 +106,14 @@ const tick = () =>
     const elapsedTime = clock.getElapsedTime()
     const deltaTime = elapsedTime - previousTime
     previousTime = elapsedTime
+
+    // Update camera position to rotate around the model
+    const radius = 20; // distance from the center of the scene
+    const speed = 0.1; // rotation speed
+    camera.position.x = radius * Math.cos(elapsedTime * speed);
+    camera.position.y = 10; // move the camera up
+    camera.position.z = radius * Math.sin(elapsedTime * speed);
+    camera.lookAt(scene.position); // make the camera look at the center of the scene
 
     // Update controls
     controls.update()
