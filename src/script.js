@@ -67,7 +67,7 @@ scene.add(sunLight)
 /////////////////////////////////////////////////////////////////////////
 ///// LOADING GLB/GLTF MODEL FROM BLENDER
 loader.load('models/gltf/iso-city.glb', function (gltf) {
-
+    console.log(gltf)
     scene.add(gltf.scene)
 })
 
@@ -77,21 +77,30 @@ loader.load('models/gltf/iso-city.glb', function (gltf) {
 const clock = new THREE.Clock()
 let previousTime = 0
 
+function calculateRotationSpeed(elapsedTime, speed) {
+    // Calculate the rotation speed based on the elapsed time
+    return elapsedTime * speed;
+}
+
+function updateCameraPosition(radius, angle) {
+    // Update camera position to rotate around the model
+    camera.position.x = radius * Math.cos(angle);
+    camera.position.z = radius * Math.sin(angle);
+    camera.lookAt(scene.position); // make the camera look at the center of the scene
+}
+
 const tick = () =>
 {
     const elapsedTime = clock.getElapsedTime()
     const deltaTime = elapsedTime - previousTime
     previousTime = elapsedTime
 
-    // Update camera position to rotate around the model
     const radius = 36; // distance from the center of the scene
     const speed = 0.1; // rotation speed
     const initialAngle = Math.atan2(30, 20); // initial angle in radians (90 degrees)
 
-    camera.position.x = radius * Math.cos(initialAngle + elapsedTime * speed);
-    camera.position.y = 15; // keep the camera at the same height
-    camera.position.z = radius * Math.sin(initialAngle + elapsedTime * speed);
-    camera.lookAt(scene.position); // make the camera look at the center of the scene
+    const rotationSpeed = calculateRotationSpeed(elapsedTime, speed);
+    updateCameraPosition(radius, initialAngle + rotationSpeed);
 
     // Update controls
     controls.update()
@@ -130,13 +139,16 @@ introAnimation() // call intro animation on start
 /////////////////////////////////////////////////////////////////////////
 //// DEFINE ORBIT CONTROLS LIMITS
 function setOrbitControlsLimits(){
-    controls.enableDamping = true
-    controls.dampingFactor = 0.04
-    controls.minDistance = 15
-    controls.maxDistance = 50
-    controls.enableRotate = true
-    controls.enableZoom = true
-    controls.maxPolarAngle = Math.PI /2.5
+    const currentPolarAngle = controls.getPolarAngle();
+
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.minDistance = 15;
+    controls.maxDistance = 50;
+    controls.enableRotate = true;
+    controls.enableZoom = false;
+    controls.minPolarAngle = currentPolarAngle;
+    controls.maxPolarAngle = currentPolarAngle;
 }
 
 /////////////////////////////////////////////////////////////////////////
