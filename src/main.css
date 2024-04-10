@@ -34,6 +34,16 @@ body, html {
 	opacity: 0;
 }
 
+.circle {
+	position: absolute;
+	border: solid 1.5px black;
+	width: 40px; 
+	height: 40px; 
+	border-radius: 50%;  
+	z-index: 100;
+	pointer-events:none;
+}
+
 #startButton {
 	width: 140px;
 	height: 50px;

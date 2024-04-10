@@ -19,6 +19,24 @@ scene.background = new THREE.Color('#c8f0f9')
 
 scene.fog = new THREE.Fog('#ade7f7', 40, 100);
 
+let circle = document.getElementById('circle');
+let mouseX = 0, mouseY = 0;
+let xp = 0, yp = 0;
+
+document.onmousemove = function(e){
+    mouseX = e.pageX - 20;
+    mouseY = e.pageY - 20;
+}
+
+function moveCircle() {
+    xp += ((mouseX - xp)/1.5);
+    yp += ((mouseY - yp)/1.5);
+    circle.style.left = xp +'px';
+    circle.style.top = yp +'px';
+    requestAnimationFrame(moveCircle);
+}
+moveCircle();
+
 const renderer = new THREE.WebGLRenderer({ antialias: true})
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 renderer.setSize(window.innerWidth, window.innerHeight)
@@ -172,45 +190,6 @@ function setOrbitControlsLimits(){
     controls.enableZoom = false;
     controls.minPolarAngle = currentPolarAngle;
     controls.maxPolarAngle = currentPolarAngle;
-}
-
-const raycaster = new THREE.Raycaster()
-const mouse = new THREE.Vector2()
-let intersects = []
-let currentIntersect = null
-
-document.addEventListener('mousemove', onMouseMove, false)
-
-// Quand la souris bouge, on check si elle touche un objet, si oui, on change le curseur en grab
-function onMouseMove(event) {
-    event.preventDefault()
-
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1
-
-    raycaster.setFromCamera(mouse, camera)
-
-    intersects = raycaster.intersectObjects(scene.children, true)
-
-    if (intersects.length > 0) {
-        document.body.style.cursor = 'pointer'
-    } else {
-        document.body.style.cursor = 'grab'
-    }
-}
-
-function cameraSmoothLookAt(target) {
-    new TWEEN.Tween(controls.target).to({
-        x: target.position.x,
-        y: target.position.y + 1.5,
-        z: target.position.z
-    }, 1000).easing(TWEEN.Easing.Quadratic.InOut).start()
-
-    new TWEEN.Tween(camera.position).to({
-        x: target.position.x + Math.PI *2 +4,
-        y: target.position.y + 1.5,
-        z: target.position.z - 4
-    }, 2000).easing(TWEEN.Easing.Quartic.InOut).start()
 }
 
 function rendeLoop() {
