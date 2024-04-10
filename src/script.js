@@ -20,6 +20,7 @@ scene.background = new THREE.Color('#c8f0f9')
 scene.fog = new THREE.Fog('#ade7f7', 40, 100);
 
 let circle = document.getElementById('circle');
+circle.style.display = 'none';
 let mouseX = 0, mouseY = 0;
 let xp = 0, yp = 0;
 
@@ -28,16 +29,7 @@ document.onmousemove = function(e){
     mouseY = e.pageY - 20;
 }
 
-function moveCircle() {
-    xp += ((mouseX - xp)/1.5);
-    yp += ((mouseY - yp)/1.5);
-    circle.style.left = xp +'px';
-    circle.style.top = yp +'px';
-    requestAnimationFrame(moveCircle);
-}
-moveCircle();
-
-const renderer = new THREE.WebGLRenderer({ antialias: true})
+const renderer = new THREE.WebGLRenderer({ antialias: false})
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.outputEncoding = THREE.sRGBEncoding
@@ -63,23 +55,57 @@ const ambient = new THREE.AmbientLight(0xa0a0fc, 0.82)
 scene.add(ambient)
 
 const sunLight = new THREE.DirectionalLight(0xe8c37b, 1.96)
-sunLight.position.set(-69,44,14)
 scene.add(sunLight)
+
+let modelLoaded = false;
+let loadingBar = document.getElementsByClassName('loading-bar')[0];
+let loadingAnimationDuration = modelLoaded ? 2 : 5; // Si le modèle est chargé, l'animation dure 2 secondes, sinon elle dure 5 secondes
+loadingBar.style.animationDuration = loadingAnimationDuration + 's';
 
 loader.load('models/gltf/scene.glb', function (gltf) {
     gltf.scene.scale.set(0.3, 0.3, 0.3);
     gltf.scene.position.set(0, 0, 0);
     console.log(gltf)
     scene.add(gltf.scene)
-    console.log("Position de la caméra après le chargement du modèle :", camera.position);
+
+    modelLoaded = true;
+    loadingBar.style.animationDuration = '2s'; // Une fois le modèle chargé, on réinitialise la durée de l'animation à 2 secondes
+    circle.style.display = 'block';
 }, function (xhr) {
-    setTimeout(() => {
-        document.getElementsByClassName('loading-bar')[0].classList.add('ended');
-        document.getElementsByClassName('loading-bar')[0].style.transform = '';
-        document.querySelector('.title').classList.add('enter-animation');
-        document.querySelector('#startButton').classList.add('enter-animation');
-    }, 2000);
+    // Calculer le pourcentage de chargement
+    let percentageLoaded = (xhr.loaded / xhr.total) * 100;
+    console.log(xhr)
+
+    // Mettre à jour la barre de chargement
+    loadingBar.style.width = percentageLoaded + '%';
+
+    // Vérifiez si le modèle est chargé avant de terminer le loader
+    let checkModelLoaded = setInterval(function() {
+        if (modelLoaded) {
+            document.getElementsByClassName('loading-bar')[0].classList.add('ended');
+            document.getElementsByClassName('loading-bar')[0].style.transform = '';
+            document.querySelector('.title').classList.add('enter-animation');
+            document.querySelector('#startButton').classList.add('enter-animation');
+            clearInterval(checkModelLoaded);
+        }
+    }, 500); // Vérifiez toutes les 2 secondes
 });
+
+loader.load('models/gltf/pin.glb', function (gltf) {
+    gltf.scene.position.set(20,15,30);
+    scene.add(gltf.scene)
+})
+
+function moveCircle() {
+    if (modelLoaded) {
+        xp += ((mouseX - xp)/1.5);
+        yp += ((mouseY - yp)/1.5);
+        circle.style.left = xp +'px';
+        circle.style.top = yp +'px';
+    }
+    requestAnimationFrame(moveCircle);
+}
+moveCircle();
 
 const clock = new THREE.Clock()
 let previousTime = 0
@@ -121,13 +147,13 @@ startButton.addEventListener('click', function(event) {
 let animationFinished = false;
 
 function startSimulation() {
+    sunLight.position.set(camera.position.x, camera.position.y, camera.position.z);
+    
     document.querySelector('.loader-container').classList.add('fade-out');
 
     controls.enabled = false; // Désactiver les contrôles OrbitControls pendant l'animation de la caméra
 
     camera.lookAt(new THREE.Vector3(0, 0, 0));
-
-    console.log("Position de la caméra après le clic sur 'Commencer' :", camera.position);
 
     new TWEEN.Tween(camera.position).to({
         x: 20,
@@ -144,8 +170,6 @@ function startSimulation() {
         setOrbitControlsLimits(); // Réappliquer les limites des contrôles
         TWEEN.remove(this);
         tick();
-
-        console.log("Position de la caméra à la fin de l'animation :", camera.position);
 
         initialAngle = Math.atan2(camera.position.z, camera.position.x); // Calculate the current angle of the camera
         animationStartTime = clock.getElapsedTime(); // Set the animation start time to the current time

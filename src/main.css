@@ -73,7 +73,9 @@ body, html {
 	width: 100%;
 	height: 1px;
 	background: #f1f0f0;
-	animation: load 2s linear forwards;
+}
+.loading-bar.ended {
+	transform: scaleX(0) !important;
 }
 
 @keyframes slide-up-fade-in {
@@ -85,18 +87,6 @@ body, html {
 		transform: translateY(0);
 		opacity: 1;
 	}
-}
-
-@keyframes load {
-	0% { transform: scaleX(0); }
-	40% { transform: scaleX(0.8); }
-	50% { transform: scaleX(0.9); }
-	60% { transform: scaleX(0.8); }
-	100% { transform: scaleX(0); }
-}
-
-.loading-bar.ended {
-	transform: scaleX(0) !important;
 }
 
 .fade-out {
