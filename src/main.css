@@ -22,11 +22,6 @@ body, html {
 	color: white;
 }
 
-.loader-container.fade-out-background {
-	transition: opacity 1s;
-	opacity: 0.9;
-}
-
 .title {
 	font-size: 4vw;
 	position: absolute;
@@ -42,6 +37,26 @@ body, html {
 	border-radius: 50%;  
 	z-index: 100;
 	pointer-events:none;
+}
+
+#resetViewButton {
+	position: absolute;
+	top: 85%;
+	left: 50%;
+	transform: translateX(-50%);
+	transition: all 4s cubic-bezier(.19,1,.22,1);
+	text-transform: capitalize;
+	background-color: #ffffffe6;
+	color: black;
+	font-family: 'Poppins';
+	padding: 20px 40px;
+	border-radius: 40px;
+	border: none;
+	z-index: 99;
+}
+
+#resetViewButton:hover {
+	cursor: pointer;
 }
 
 #startButton {
@@ -95,6 +110,20 @@ body, html {
 	}
 	100% {
 		transform: translateY(100%);
+		opacity: 0;
+		display: none;
+	}
+}
+
+.fade-out-instant {
+	animation: fadeOutInstant 1s forwards;
+}
+
+@keyframes fadeOutInstant {
+	0% {
+		opacity: 1;
+	}
+	100% {
 		opacity: 0;
 		display: none;
 	}

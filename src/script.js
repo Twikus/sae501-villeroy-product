@@ -71,6 +71,8 @@ manager.onLoad = function() {
     }, 2000);
 };
 
+let targetObject = null;
+
 loader.load('models/gltf/scene.glb', function (gltf) {
     gltf.scene.scale.set(0.3, 0.3, 0.3);
     gltf.scene.position.set(0, 0, 0);
@@ -79,12 +81,32 @@ loader.load('models/gltf/scene.glb', function (gltf) {
 
     modelLoaded = true;
     circle.style.display = 'block';
+
+    targetObject = gltf.scene;
 });
 
+let pin;
+let buildingHeight = 1.7; // Remplacez par la hauteur réelle de votre bâtiment
+let buildingPosition = new THREE.Vector3(0, 0, 0); // Remplacez par la position réelle de votre bâtiment
+
 loader.load('models/gltf/pin.glb', function (gltf) {
-    gltf.scene.position.set(20,15,30);
+    gltf.scene.position.set(buildingPosition.x, buildingPosition.y + buildingHeight, buildingPosition.z);
     scene.add(gltf.scene)
+    pin = gltf.scene;
 })
+
+function animatePin() {
+    requestAnimationFrame(animatePin);
+
+    // Faire osciller le pin de haut en bas
+    if (pin) {
+        const time = Date.now() * 0.003; // Obtenir le temps actuel
+        pin.position.y = buildingPosition.y + buildingHeight + Math.sin(time) * 0.2; // Modifier la position y du pin
+    }
+
+    renderer.render(scene, camera);
+}
+animatePin();
 
 function moveCircle() {
     if (modelLoaded) {
@@ -139,7 +161,7 @@ let animationFinished = false;
 function startSimulation() {
     sunLight.position.set(camera.position.x, camera.position.y, camera.position.z);
     
-    document.querySelector('.loader-container').classList.add('fade-out');
+    document.querySelector('.loader-container').classList.add('fade-out-instant');
 
     controls.enabled = false; // Désactiver les contrôles OrbitControls pendant l'animation de la caméra
 
@@ -192,6 +214,114 @@ document.querySelector('#startButton').addEventListener('animationend', () => {
     document.querySelector('.loader-container').classList.add('fade-out-background');
 });
 
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
+
+// TEST CLICK ZOOM
+let targetPosition = new THREE.Vector3(); // Position cible pour la caméra
+let isCameraMoving = false; // Indicateur pour savoir si la caméra est en mouvement
+
+// Ajouter un écouteur d'événement pour détecter le clic sur le bâtiment
+document.addEventListener('click', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects(scene.children, true);
+
+    if (intersects.length > 0 && controls.enabled) {
+        let object = intersects[0].object;
+        while (object) {
+            if (object.name === 'BATIMENT_PRINCIPAL' ) {
+                targetPosition = object.position;
+                moveCameraToBuilding(targetPosition);
+                resetViewButton.style.display = 'block'; // Afficher le bouton
+                return;
+            }
+            object = object.parent;
+        }
+    }
+});
+
+const resetViewButton = document.getElementById('resetViewButton');
+resetViewButton.addEventListener('click', function(event) {
+    event.preventDefault();
+    resetView();
+});
+
+let animationShouldResume = true;
+
+function resetView() {
+    isCameraMoving = true; // Indiquer que la caméra est en mouvement
+
+    new TWEEN.Tween(camera.position).to({
+        x: 20, // Mettez ici la position x par défaut de la caméra
+        y: 30, // Mettez ici la position y par défaut de la caméra
+        z: 15  // Mettez ici la position z par défaut de la caméra
+    }, 2000).easing(TWEEN.Easing.Quartic.InOut).start()
+    .onUpdate(function() {
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
+    })
+    .onComplete(function() {
+        resetViewButton.style.display = 'none'; // Cacher le bouton
+        animationShouldResume = false;
+    })
+}
+
+// Fonction pour déplacer la caméra vers le bâtiment et commencer à tourner autour de celui-ci
+function moveCameraToBuilding(target) {
+    isCameraMoving = true; // Indiquer que la caméra est en mouvement
+
+    new TWEEN.Tween(camera.position).to({
+        x: target.x,
+        y: target.y,
+        z: target.z
+    }, 2000).easing(TWEEN.Easing.Quartic.InOut).start()
+    .onUpdate(function() {
+        camera.lookAt(target);
+    })
+    .onComplete(function() {
+        isCameraMoving = false; // Indiquer que la caméra a fini de se déplacer
+        console.log(camera.position)
+        rotateCameraAroundBuilding(target); // Commencer à faire tourner la caméra autour du bâtiment
+    });
+}
+
+function rotateCameraAroundBuilding(target) {
+    // checker si la caméra est en mouvement toute les 60ms
+    if (!animationShouldResume) {
+        return;
+    }
+
+    var angle = 0;
+    var radius = 10; 
+
+    function animate() {
+        // Use Math.cos and Math.sin to set camera X and Z values based on angle. 
+        camera.position.x = radius * Math.cos( angle );  
+        camera.position.z = radius * Math.sin( angle );
+        camera.lookAt( target ); // Look at the target
+    }
+
+    function render() {
+        renderer.render( scene, camera );
+    }
+
+    function update() {
+        if (!animationShouldResume) {
+            return;
+        }
+
+        angle += 0.005; // Increment the angle
+        animate(); // Call the animate function
+        render(); // Call the render function
+        requestAnimationFrame(update); // Call the update function
+    }
+
+    update(); // Call the update function
+}
+
 function setOrbitControlsLimits(){
     const currentPolarAngle = controls.getPolarAngle();
 
@@ -215,27 +345,3 @@ function rendeLoop() {
 
 rendeLoop()
 
-import { GUI } from 'three/examples/jsm/libs/dat.gui.module.js'
-const gui = new GUI()
-
-var params = {
-    color: sunLight.color.getHex(),
-    color2: ambient.color.getHex(),
-    color3: scene.background.getHex()
-}
-
-const update = function () {
-    var colorObj = new THREE.Color(params.color)
-    var colorObj2 = new THREE.Color(params.color2)
-    var colorObj3 = new THREE.Color(params.color3)
-    sunLight.color.set(colorObj)
-    ambient.color.set(colorObj2)
-    scene.background.set(colorObj3)
-}
-
-gui.add(sunLight, 'intensity').min(0).max(10).step(0.0001).name('Dir intensity')
-gui.add(sunLight.position, 'x').min(-100).max(100).step(0.00001).name('Dir X pos')
-gui.add(sunLight.position, 'y').min(0).max(100).step(0.00001).name('Dir Y pos')
-gui.add(sunLight.position, 'z').min(-100).max(100).step(0.00001).name('Dir Z pos')
-gui.addColor(params, 'color').name('Dir color').onChange(update)
-gui.addColor(params, 'color2').name('Amb color')
