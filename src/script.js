@@ -5,8 +5,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 
-const dracoLoader = new DRACOLoader()
-const loader = new GLTFLoader()
+const manager = new THREE.LoadingManager();
+
+const dracoLoader = new DRACOLoader(manager)
+const loader = new GLTFLoader(manager)
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/')
 dracoLoader.setDecoderConfig({ type: 'js' })
 loader.setDRACOLoader(dracoLoader)
@@ -58,9 +60,16 @@ const sunLight = new THREE.DirectionalLight(0xe8c37b, 1.96)
 scene.add(sunLight)
 
 let modelLoaded = false;
-let loadingBar = document.getElementsByClassName('loading-bar')[0];
-let loadingAnimationDuration = modelLoaded ? 2 : 5; // Si le modèle est chargé, l'animation dure 2 secondes, sinon elle dure 5 secondes
-loadingBar.style.animationDuration = loadingAnimationDuration + 's';
+let circleLoader = document.getElementsByClassName('loader');
+
+manager.onLoad = function() {
+    circleLoader[0].classList.add('fade-out');
+    // set interval to remove loader after fade out
+    setTimeout(() => {
+        document.querySelector('.title').classList.add('enter-animation');
+        document.querySelector('#startButton').classList.add('enter-animation');
+    }, 2000);
+};
 
 loader.load('models/gltf/scene.glb', function (gltf) {
     gltf.scene.scale.set(0.3, 0.3, 0.3);
@@ -69,26 +78,7 @@ loader.load('models/gltf/scene.glb', function (gltf) {
     scene.add(gltf.scene)
 
     modelLoaded = true;
-    loadingBar.style.animationDuration = '2s'; // Une fois le modèle chargé, on réinitialise la durée de l'animation à 2 secondes
     circle.style.display = 'block';
-}, function (xhr) {
-    // Calculer le pourcentage de chargement
-    let percentageLoaded = (xhr.loaded / xhr.total) * 100;
-    console.log(xhr)
-
-    // Mettre à jour la barre de chargement
-    loadingBar.style.width = percentageLoaded + '%';
-
-    // Vérifiez si le modèle est chargé avant de terminer le loader
-    let checkModelLoaded = setInterval(function() {
-        if (modelLoaded) {
-            document.getElementsByClassName('loading-bar')[0].classList.add('ended');
-            document.getElementsByClassName('loading-bar')[0].style.transform = '';
-            document.querySelector('.title').classList.add('enter-animation');
-            document.querySelector('#startButton').classList.add('enter-animation');
-            clearInterval(checkModelLoaded);
-        }
-    }, 500); // Vérifiez toutes les 2 secondes
 });
 
 loader.load('models/gltf/pin.glb', function (gltf) {
