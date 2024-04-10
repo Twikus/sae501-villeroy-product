@@ -1,5 +1,3 @@
-/////////////////////////////////////////////////////////////////////////
-///// IMPORT
 import './main.css'
 import * as THREE from 'three'
 import { TWEEN } from 'three/examples/jsm/libs/tween.module.min.js'
@@ -7,40 +5,30 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 
-/////////////////////////////////////////////////////////////////////////
-//// DRACO LOADER TO LOAD DRACO COMPRESSED MODELS FROM BLENDER
 const dracoLoader = new DRACOLoader()
 const loader = new GLTFLoader()
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/')
 dracoLoader.setDecoderConfig({ type: 'js' })
 loader.setDRACOLoader(dracoLoader)
 
-/////////////////////////////////////////////////////////////////////////
-///// DIV CONTAINER CREATION TO HOLD THREEJS EXPERIENCE
 const container = document.createElement('div')
 document.body.appendChild(container)
 
-/////////////////////////////////////////////////////////////////////////
-///// SCENE CREATION
 const scene = new THREE.Scene()
 scene.background = new THREE.Color('#c8f0f9')
 
-/////////////////////////////////////////////////////////////////////////
-///// RENDERER CONFIG
-const renderer = new THREE.WebGLRenderer({ antialias: true}) // turn on antialias
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)) //set pixel ratio
-renderer.setSize(window.innerWidth, window.innerHeight) // make it full screen
-renderer.outputEncoding = THREE.sRGBEncoding // set color encoding
-container.appendChild(renderer.domElement) // add the renderer to html div
+scene.fog = new THREE.Fog('#ade7f7', 40, 100);
 
-/////////////////////////////////////////////////////////////////////////
-///// CAMERAS CONFIG
-const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 100)
-camera.position.set(34,16,-20)
+const renderer = new THREE.WebGLRenderer({ antialias: true})
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.outputEncoding = THREE.sRGBEncoding
+container.appendChild(renderer.domElement)
+
+const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 500)
+camera.position.set(26, 4, -35)
 scene.add(camera)
 
-/////////////////////////////////////////////////////////////////////////
-///// MAKE EXPERIENCE FULL SCREEN
 window.addEventListener('resize', () => {
     const width = window.innerWidth
     const height = window.innerHeight
@@ -51,12 +39,8 @@ window.addEventListener('resize', () => {
     renderer.setPixelRatio(2)
 })
 
-/////////////////////////////////////////////////////////////////////////
-///// CREATE ORBIT CONTROLS
 const controls = new OrbitControls(camera, renderer.domElement)
 
-/////////////////////////////////////////////////////////////////////////
-///// SCENE LIGHTS
 const ambient = new THREE.AmbientLight(0xa0a0fc, 0.82)
 scene.add(ambient)
 
@@ -64,80 +48,118 @@ const sunLight = new THREE.DirectionalLight(0xe8c37b, 1.96)
 sunLight.position.set(-69,44,14)
 scene.add(sunLight)
 
-/////////////////////////////////////////////////////////////////////////
-///// LOADING GLB/GLTF MODEL FROM BLENDER
-loader.load('models/gltf/iso-city.glb', function (gltf) {
+loader.load('models/gltf/scene.glb', function (gltf) {
+    gltf.scene.scale.set(0.3, 0.3, 0.3);
+    gltf.scene.position.set(0, 0, 0);
     console.log(gltf)
     scene.add(gltf.scene)
-})
-
-/////////////////////////////////////////////////////////////////////////
-//// INTRO CAMERA ANIMATION USING TWEEN
+    console.log("Position de la caméra après le chargement du modèle :", camera.position);
+}, function (xhr) {
+    setTimeout(() => {
+        document.getElementsByClassName('loading-bar')[0].classList.add('ended');
+        document.getElementsByClassName('loading-bar')[0].style.transform = '';
+        document.querySelector('.title').classList.add('enter-animation');
+        document.querySelector('#startButton').classList.add('enter-animation');
+    }, 2000);
+});
 
 const clock = new THREE.Clock()
 let previousTime = 0
 
 function calculateRotationSpeed(elapsedTime, speed) {
-    // Calculate the rotation speed based on the elapsed time
     return elapsedTime * speed;
 }
 
 function updateCameraPosition(radius, angle) {
-    // Update camera position to rotate around the model
-    camera.position.x = radius * Math.cos(angle);
-    camera.position.z = radius * Math.sin(angle);
-    camera.lookAt(scene.position); // make the camera look at the center of the scene
+    if (!manualControl) {
+        camera.position.x = radius * Math.cos(angle);
+        camera.position.z = radius * Math.sin(angle);
+        camera.lookAt(scene.position);
+    }
+}
+
+let manualControl = false;
+let initialAngle = 0;
+let animationStartTime = 0;
+
+document.addEventListener('mousedown', () => {
+    manualControl = true;
+});
+
+// // Ajouter un événement pour détecter la fin de la manipulation manuelle de la caméra
+document.addEventListener('mouseup', () => {
+    manualControl = false;
+    initialAngle = Math.atan2(camera.position.z, camera.position.x); // Calculate the current angle of the camera
+    animationStartTime = clock.getElapsedTime(); // Set the animation start time to the current time
+});
+
+
+const startButton = document.getElementById('startButton');
+startButton.addEventListener('click', function(event) {
+    event.preventDefault();
+    startSimulation();
+});
+
+let animationFinished = false;
+
+function startSimulation() {
+    document.querySelector('.loader-container').classList.add('fade-out');
+
+    controls.enabled = false; // Désactiver les contrôles OrbitControls pendant l'animation de la caméra
+
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+    console.log("Position de la caméra après le clic sur 'Commencer' :", camera.position);
+
+    new TWEEN.Tween(camera.position).to({
+        x: 20,
+        y: 15,
+        z: 30
+    }, 6500)
+    .delay(1000).easing(TWEEN.Easing.Quartic.InOut).start()
+    .onUpdate(function() {
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
+    })
+    .onComplete(function () {
+        controls.enabled = true; // Réactiver les contrôles OrbitControls
+        controls.update(); // Mettre à jour les contrôles pour qu'ils fonctionnent à nouveau
+        setOrbitControlsLimits(); // Réappliquer les limites des contrôles
+        TWEEN.remove(this);
+        tick();
+
+        console.log("Position de la caméra à la fin de l'animation :", camera.position);
+
+        initialAngle = Math.atan2(camera.position.z, camera.position.x); // Calculate the current angle of the camera
+        animationStartTime = clock.getElapsedTime(); // Set the animation start time to the current time
+
+        animationFinished = true; // Ajoutez cette ligne
+    });
 }
 
 const tick = () =>
 {
     const elapsedTime = clock.getElapsedTime()
-    const deltaTime = elapsedTime - previousTime
     previousTime = elapsedTime
 
-    const radius = 36; // distance from the center of the scene
-    const speed = 0.1; // rotation speed
-    const initialAngle = Math.atan2(30, 20); // initial angle in radians (90 degrees)
+    const radius = Math.sqrt(camera.position.x * camera.position.x + camera.position.z * camera.position.z);
+    const speed = 0.1;
 
-    const rotationSpeed = calculateRotationSpeed(elapsedTime, speed);
-    updateCameraPosition(radius, initialAngle + rotationSpeed);
+    if (!manualControl && animationFinished) {
+        const rotationSpeed = calculateRotationSpeed(elapsedTime - animationStartTime, speed);
+        updateCameraPosition(radius, initialAngle + rotationSpeed);
+    }
 
-    // Update controls
     controls.update()
 
-    // Render
     renderer.render(scene, camera)
 
-    // Call tick again on the next frame
     window.requestAnimationFrame(tick)
 }
 
-function introAnimation() {
-    controls.enabled = false //disable orbit controls to animate the camera
-    
-    new TWEEN.Tween(camera.position.set(26,4,-35 )).to({ // from camera position
-        x: 20, //desired x position to go
-        y: 15, //desired y position to go
-        z: 30 //desired z position to go
-    }, 6500) // time take to animate
-    .delay(1000).easing(TWEEN.Easing.Quartic.InOut).start() // define delay, easing
-    .onUpdate(function() { //on update animation
-        camera.lookAt(new THREE.Vector3(0,0,0)); // orient the camera to look at the center of the scene
-    })
-    .onComplete(function () { //on finish animation
-        controls.enabled = true //enable orbit controls
-        setOrbitControlsLimits() //enable controls limits
-        TWEEN.remove(this) // remove the animation from memory
+document.querySelector('#startButton').addEventListener('animationend', () => {
+    document.querySelector('.loader-container').classList.add('fade-out-background');
+});
 
-        // start moving the camera closer to the model
-        tick(); // start the tick function
-    })
-}
-
-introAnimation() // call intro animation on start
-
-/////////////////////////////////////////////////////////////////////////
-//// DEFINE ORBIT CONTROLS LIMITS
 function setOrbitControlsLimits(){
     const currentPolarAngle = controls.getPolarAngle();
 
@@ -145,40 +167,70 @@ function setOrbitControlsLimits(){
     controls.dampingFactor = 0.1;
     controls.minDistance = 15;
     controls.maxDistance = 50;
+    controls.enablePan = true;
     controls.enableRotate = true;
     controls.enableZoom = false;
     controls.minPolarAngle = currentPolarAngle;
     controls.maxPolarAngle = currentPolarAngle;
 }
 
-/////////////////////////////////////////////////////////////////////////
-//// RENDER LOOP FUNCTION
-function rendeLoop() {
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
+let intersects = []
+let currentIntersect = null
 
-    TWEEN.update() // update animations
+document.addEventListener('mousemove', onMouseMove, false)
 
-    controls.update() // update orbit controls
+// Quand la souris bouge, on check si elle touche un objet, si oui, on change le curseur en grab
+function onMouseMove(event) {
+    event.preventDefault()
 
-    renderer.render(scene, camera) // render the scene using the camera
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1
 
-    requestAnimationFrame(rendeLoop) //loop the render function
-    
+    raycaster.setFromCamera(mouse, camera)
+
+    intersects = raycaster.intersectObjects(scene.children, true)
+
+    if (intersects.length > 0) {
+        document.body.style.cursor = 'pointer'
+    } else {
+        document.body.style.cursor = 'grab'
+    }
 }
 
-rendeLoop() //start rendering
+function cameraSmoothLookAt(target) {
+    new TWEEN.Tween(controls.target).to({
+        x: target.position.x,
+        y: target.position.y + 1.5,
+        z: target.position.z
+    }, 1000).easing(TWEEN.Easing.Quadratic.InOut).start()
 
+    new TWEEN.Tween(camera.position).to({
+        x: target.position.x + Math.PI *2 +4,
+        y: target.position.y + 1.5,
+        z: target.position.z - 4
+    }, 2000).easing(TWEEN.Easing.Quartic.InOut).start()
+}
+
+function rendeLoop() {
+    TWEEN.update()
+    controls.update()
+    renderer.render(scene, camera)
+    requestAnimationFrame(rendeLoop)
+}
+
+rendeLoop()
 
 import { GUI } from 'three/examples/jsm/libs/dat.gui.module.js'
 const gui = new GUI()
 
-// create parameters for GUI
 var params = {
     color: sunLight.color.getHex(),
     color2: ambient.color.getHex(),
     color3: scene.background.getHex()
 }
 
-// create a function to be called by GUI
 const update = function () {
     var colorObj = new THREE.Color(params.color)
     var colorObj2 = new THREE.Color(params.color2)
@@ -188,22 +240,9 @@ const update = function () {
     scene.background.set(colorObj3)
 }
 
-//////////////////////////////////////////////////
-//// GUI CONFIG
 gui.add(sunLight, 'intensity').min(0).max(10).step(0.0001).name('Dir intensity')
 gui.add(sunLight.position, 'x').min(-100).max(100).step(0.00001).name('Dir X pos')
 gui.add(sunLight.position, 'y').min(0).max(100).step(0.00001).name('Dir Y pos')
 gui.add(sunLight.position, 'z').min(-100).max(100).step(0.00001).name('Dir Z pos')
 gui.addColor(params, 'color').name('Dir color').onChange(update)
-gui.addColor(params, 'color2').name('Amb color').onChange(update)
-gui.add(ambient, 'intensity').min(0).max(10).step(0.001).name('Amb intensity')
-gui.addColor(params, 'color3').name('BG color').onChange(update)
-
-//////////////////////////////////////////////////
-//// ON MOUSE MOVE TO GET CAMERA POSITION
-document.addEventListener('mousemove', (event) => {
-    event.preventDefault()
-
-    console.log(camera.position)
-
-}, false)
+gui.addColor(params, 'color2').name('Amb color')
